@@ -6,6 +6,7 @@
 # Email    : 1206572082@qq.com
 import os
 import librosa
+import numpy as np
 from tqdm import tqdm
 import soundfile as sf
 from typing import Union
@@ -14,7 +15,7 @@ import multiprocessing as mult
 eps = 2.220446049250313e-16
 
 
-def waveform_resample(wav_path: Union[str], sample_rate: Union[int], save_dir: Union[str] = None):
+def resample(wav_path: Union[str], sample_rate: Union[int], save_dir: Union[str] = None):
     """
     音频数据重采样，将音频数据以 sample_rate 的采样率加载数据
 
@@ -31,12 +32,81 @@ def waveform_resample(wav_path: Union[str], sample_rate: Union[int], save_dir: U
     return signal
 
 
-def waveform_resample_mult(wav_paths: Union[list], sample_rate: Union[int], save_dir: Union[str] = None):
+def waveform_resample(wav_path: Union[list], sample_rate: Union[int], save_dir: Union[str] = None):
+    """
+    对多条语音信号进行重采样处理，并在文件维度上合并
+
+    :param wav_path: wav 文件路径
+    :param sample_rate: wav 语音数据采样率
+    :param save_dir: 重采样文件保存路径
+    :return: 重采样完成的数据内容
+    """
     signals = list()
-    for wav_path in tqdm(wav_paths, unit="files", postfix={"sr": sample_rate, "save_dir": save_dir}):
-        signal = waveform_resample(wav_path, sample_rate, save_dir)
+    postfix = {"sr": sample_rate, "save_dir": save_dir}
+    for wav_file in tqdm(wav_path, desc=f"Resample [{os.getpid()}]", unit="files", postfix=postfix):
+        signal = resample(wav_file, sample_rate, save_dir)
         signals.append(signal)
     return signals
+
+
+def enframe(signal, sample_rate, window=None, frame_length=0.02, hop_length=0.01):
+    """
+    原始语音信号分帧
+
+    :param signal: 原始语音数据。
+    :param sample_rate: 原始语音采样率。
+    :param window: 窗函数，通过判断该参数类型进行不同操作。
+    :param frame_length: 帧长，当该参数为小数时通过采样率计算帧长度，当该参数为整数时即为帧长度。
+    :param hop_length: 帧移间隔，当该参数为小数时通过采样率计算得到，当该参数为整数时即为帧间隔。
+    :return: 完成分帧、加窗的语音数据。
+    """
+    # 计算获得当前帧长
+    if isinstance(frame_length, float):
+        frame_length = int(sample_rate * frame_length)
+    # 计算获得当前帧移间隔
+    if isinstance(hop_length, float):
+        hop_length = int(sample_rate * hop_length)
+
+    # 获取信号数据长度、帧数量
+    length = len(signal)
+    frames_num = (length - frame_length) // hop_length + 1
+    # 加窗参数处理
+    if window is None:
+        window = np.ones(frame_length)
+    elif isinstance(window, int):
+        window = np.ones(window)
+    elif isinstance(window, list):
+        window = np.array(window)
+    win_length = len(window)
+    assert frame_length == win_length, f"frame_length[{frame_length}] does not match the window[{win_length}]."
+
+    # 初始化帧，获取每帧的起始样点索引
+    frames_idx = hop_length * np.array([i for i in range(frames_num)])
+    frames = np.zeros((frames_num, frame_length))
+    for i in range(frames_num):
+        frames[i, :] = signal[frames_idx[i]:frames_idx[i] + frame_length]
+    frames = frames * np.array(window)
+    return frames
+
+
+def waveform_enframe(wav_path, sample_rate, window=None, frame_length: int = 160, hop_length: int = 80):
+    """
+    对多条语音信号进行分帧处理，并在帧维度上合并
+
+    :param wav_path: wav 文件路径
+    :param sample_rate: wav 语音数据采样率
+    :param window: 窗函数选择
+    :param frame_length: wav 语音数据帧长
+    :param hop_length: wav 语音数据帧间隔
+    :return: 分帧完成的数据内容
+    """
+    frames_array = np.array(list())
+    postfix = {"sample_rate": sample_rate, "frame_length": frame_length, "hop_length": hop_length}
+    for wav_file in tqdm(wav_path, desc=f"Enframe [{os.getpid()}]", unit="files", postfix=postfix):
+        signal, sr = librosa.load(wav_file, sr=8000)
+        frames = enframe(signal, sample_rate, window, frame_length, hop_length)
+        frames_array = np.r_[frames_array, frames] if len(frames_array) != 0 else frames
+    return frames_array
 
 
 def mult_processing(datasets, args: Union[list], function, n_jobs: Union[int] = -1):
@@ -55,14 +125,11 @@ def mult_processing(datasets, args: Union[list], function, n_jobs: Union[int] = 
         result.append(pools.apply_async(func=function, args=tuple([datasets[s_idx:e_idx]] + args)))
     pools.close()
     pools.join()
-    pools_res = list()
-    for res in tqdm(result, desc="Results merging"):
-        pools_res += res.get()
-    return pools_res
+    return result
 
 
 if __name__ == '__main__':
     root_dir = r"F:\WorkSpace\PythonObject\SpeechLikeWaveformModulation\dataset"
     save_path = r"F:\MyPythonUtils\dataset"
-    wav_files = [os.path.join(root_dir, file) for file in os.listdir(root_dir)]
-    signals = mult_processing(wav_files, [16000, save_path], waveform_resample_mult)
+    wav_files = [os.path.join(root_dir, file) for file in os.listdir(root_dir)][:220]
+    res = mult_processing(wav_files, [16000], waveform_enframe)
