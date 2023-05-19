@@ -1,18 +1,23 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# @Time    : 2023/5/18 16:50
-# @Name    : baseutils.py
-# @Author  : Xia Zhaoxiang
-# @Email   : 1206572082@qq.com
+# Author   : Xia Zhaoxiang
+# FileName : acoustics.py
+# Software : PyCharm
+# Time     : 2023/5/19 11:14
+# Email    : 1206572082@qq.com
+
 import os
 import toml
 import time
 import torch
 import shutil
 import random
+import logging
+import colorlog
+import importlib
 import numpy as np
 from typing import Union
 import torch.backends.cudnn
+from inspect import currentframe
 
 
 def setup_seed(seed: Union[int] = 727):
@@ -87,3 +92,125 @@ class DictToObj(object):
                 setattr(self, key, [DictToObj(v) if isinstance(v, dict) else v for v in value])
             else:
                 setattr(self, key, DictToObj(value) if isinstance(value, dict) else value)
+
+
+# 程序运行使用的日志类型
+class Logger:
+    def __init__(self, log_name, save_dir="logs", level=logging.DEBUG, console=True, add=False):
+        """
+        初始化日志类型用于程序运行的结果输出
+
+        :param log_name: 保存的日志文件名称
+        :param save_dir: 日志文件的保存根目录
+        :param console: 是否需要将日志内容打印至控制台
+        :param add: 当前日志是否为添加类型
+        """
+        prepare_directory(save_dir)
+        log_name = log_name if log_name.endswith(".log") else (log_name + ".log")  # 处理日志文件名称
+        if not add and os.path.exists(os.path.join(save_dir, log_name)):
+            os.remove(os.path.join(save_dir, log_name))
+
+        # 输出格式以及对应类型的输出颜色
+        self.formatter = "[%(asctime)s %(levelname)s] %(message)s"
+        self.colors = {"INFO": "blue", "DEBUG": "cyan", "WARNING": "yellow", "ERROR": "red", "CRITICAL": "red,bg_white"}
+
+        # 有颜色格式
+        self.formatter_colored = colorlog.ColoredFormatter(f"%(log_color)s{self.formatter}", log_colors=self.colors)
+        # 无颜色格式
+        self.formatter_colorless = logging.Formatter(self.formatter)
+
+        # 创建 logger
+        self.logger = logging.getLogger(log_name)
+        self.logger.setLevel(level)  # 设置日志等级
+
+        # 创建一个 handler 用于写入日志内容至文件
+        file_handler = logging.FileHandler(os.path.join(save_dir, log_name), encoding="utf-8")
+        file_handler.setFormatter(self.formatter_colorless)
+        file_handler.setLevel(level)
+        self.logger.addHandler(file_handler)
+
+        # 当 console 为真时，创建一个 handler 用于写入日志内容至控制台
+        if isinstance(console, bool) and console:
+            stream_handler = logging.StreamHandler()
+            stream_handler.setLevel(level)
+            stream_handler.setFormatter(self.formatter_colored)
+            self.logger.addHandler(stream_handler)
+        self.logger.info(f"< {log_name} >".center(89, "-"))
+
+    def info(self, message, header=None, footer=None):
+        last_frame = currentframe().f_back
+        filepath = last_frame.f_code.co_filename
+        # 获取当前正在执行的函数名称
+        function = last_frame.f_code.co_name
+        function = "main" if function == "<module>" else function
+        lineno = last_frame.f_lineno
+        if header is not None:
+            self.logger.info(f"< {header} : {filepath}--{function}--{lineno} >".center(89, "-"))
+        if message is not None:
+            self.logger.info(message)
+        if footer is not None:
+            self.logger.info(f"< {footer} {function}--{lineno} >".center(89, "-"))
+
+    def debug(self, message, header=None, footer=None):
+        last_frame = currentframe().f_back
+        filepath = last_frame.f_code.co_filename
+        # 获取当前正在执行的函数名
+        function = last_frame.f_code.co_name
+        function = "main" if function == "<module>" else function
+        lineno = last_frame.f_lineno
+        if header is not None:
+            self.logger.debug(f"< {header} : {filepath}--{function}--{lineno} >".center(88, "-"))
+        if message is not None:
+            self.logger.debug(message)
+        if footer is not None:
+            self.logger.debug(f"< {footer} {function}--{lineno} >".center(88, "-"))
+
+    def warning(self, message, header=None, footer=None):
+        last_frame = currentframe().f_back
+        filepath = last_frame.f_code.co_filename
+        # 获取当前正在执行的函数名
+        function = last_frame.f_code.co_name
+        function = "main" if function == "<module>" else function
+        lineno = last_frame.f_lineno
+        if header is not None:
+            self.logger.warning(f"< {header} : {filepath}--{function}--{lineno} >".center(86, "-"))
+        if message is not None:
+            self.logger.warning(message)
+        if footer is not None:
+            self.logger.warning(f"< {footer} {function}--{lineno} >".center(86, "-"))
+
+    def error(self, message, immediately=False):
+        last_frame = currentframe().f_back
+        filepath = last_frame.f_code.co_filename
+        # 获取当前正在执行的函数名
+        function = last_frame.f_code.co_name
+        function = "main" if function == "<module>" else function
+        lineno = last_frame.f_lineno
+        self.logger.error(f"< Error: {filepath}--{function}--{lineno} >".center(88, "-"))
+        self.logger.error(message)
+        if immediately:
+            exit(1)
+
+    def critical(self, message):
+        last_frame = currentframe().f_back
+        filepath = last_frame.f_code.co_filename
+        # 获取当前正在执行的函数名
+        function = last_frame.f_code.co_name
+        function = "main" if function == "<module>" else function
+        lineno = last_frame.f_lineno
+        self.logger.critical(f"< Critical: {filepath}--{function}--{lineno} >".center(85, "-"))
+        self.logger.critical(message)
+        self.logger.critical(f"< Critical: {filepath}--{function}--{lineno} >".center(85, "-"))
+        exit(1)
+
+
+# 初始化配置（实现类的实例化）
+def initialize_config(module_cfg, pass_params=True):
+    module = importlib.import_module(module_cfg["module"])
+    if pass_params:
+        if "args" not in module_cfg.keys():
+            return getattr(module, module_cfg["main"])()
+        else:
+            return getattr(module, module_cfg["main"])(**module_cfg["args"])
+    else:
+        return getattr(module, module_cfg["main"])
