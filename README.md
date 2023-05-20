@@ -46,3 +46,20 @@ CUDA_SDK_LIB_PATH	=	"%CUDA_SDK_PATH%\common\lib\x64"
 pip3 install torch==1.13.0+cu117 torchvision==0.14.0+cu117 torchaudio===0.13.0+cu117 -f https://download.pytorch.org/whl/cu117/torch_stable.html
 ```
 
+
+
+#### Pyinstaller 用法
+
+| 指令                                 | 作用                                                         |
+| ------------------------------------ | ------------------------------------------------------------ |
+| -h，--help                           | 查看帮助信息                                                 |
+| -F，--onefile                        | 产生单个的可执行文件                                         |
+| -D，--onedir                         | 产生一个目录（包含多个文件）作为可执行程序                   |
+| -a，--ascii                          | 不包含 Unicode 字符集支持                                    |
+| -d，--debug                          | 产生 debug 版本的可执行文件                                  |
+| -w，--windowed，--noconsolc          | 指定程序运行时不显示命令行窗口（仅对 Windows 有效）          |
+| -c，--nowindowed，--console          | 指定使用命令行窗口运行程序（仅对 Windows 有效）              |
+| -o {output_dir}，--out={output_dir}  | 指定 spec 文件的生成目录。如果没有指定，则默认使用当前目录来生成 spec 文件 |
+| -p {output_dir}，--path={output_dir} | 设置 Python 导入模块的路径，也可使用路径分隔符（Windows 使用分号，Linux 使用冒号）来分隔多个路径 |
+| -n {Name}，--name={Name}             | 指定项目（产生的 spec）名字。如果省略该选项，那么第一个脚本的主文件名将作为 spec 的名字 |
+
