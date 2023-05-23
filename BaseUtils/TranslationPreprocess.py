@@ -6,7 +6,10 @@ from urllib import parse
 import tkinter.messagebox as messagebox
 
 GOOGLE_TRANSLATE_URL = "https://translate.google.com/m?q=%s&tl=%s&sl=%s"
-proxy_servers = {}
+proxy_servers = {
+    "http": "http://127.0.0.1:15732",
+    "https": "http://127.0.0.1:15732"
+}
 
 
 def save_proxy():
@@ -89,7 +92,7 @@ label = tk.Label(frame, textvariable=label_text)
 label.pack(side="left")
 
 entry = tk.Entry(frame)
-entry.insert(tk.END, "")  # 设置默认文本值为"http://"
+entry.insert(tk.END, proxy_servers["http"][7:])  # 设置默认文本值为"http://"
 entry.pack(side="left", padx=5)
 
 # 创建保存按钮
