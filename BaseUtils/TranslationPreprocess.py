@@ -40,7 +40,6 @@ def translate(text, to_language="中文", text_language="英文", api="Google Tr
         # Build request
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         payload = {'appid': appid, 'q': text, 'from': text_language, 'to': to_language, 'salt': salt, 'sign': sign}
-        print(payload)
         # Send request
         r = requests.post(BAIDU_TRANSLATE_URL, params=payload, headers=headers, proxies=PROXY_SERVERS)
         data = eval(json.dumps(r.json(), indent=4, ensure_ascii=False))
@@ -83,7 +82,7 @@ def process_text():
 # 更新代理服务器内容
 def update_proxy_server(first: bool = False):
     PROXY_ADDRESS = "127.0.0.1" if first else address_entry.get()
-    PROXY_PORT = "15732" if first else address_entry.get()
+    PROXY_PORT = "15732" if first else port_entry.get()
     if (PROXY_ADDRESS == "" or PROXY_PORT == "") and not first:
         messagebox.showwarning("警告", "未输入代理端口!")
         return
