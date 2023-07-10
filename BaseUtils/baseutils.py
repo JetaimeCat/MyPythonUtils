@@ -62,6 +62,18 @@ def load_profile(toml_path: Union[str], needObj: Union[bool] = False):
     return DictToObj(params) if needObj else params
 
 
+# 初始化配置（实现类的实例化）
+def initialize_config(module_cfg, pass_params=True):
+    module = importlib.import_module(module_cfg["module"])
+    if pass_params:
+        if "args" not in module_cfg.keys():
+            return getattr(module, module_cfg["main"])()
+        else:
+            return getattr(module, module_cfg["main"])(**module_cfg["args"])
+    else:
+        return getattr(module, module_cfg["main"])
+
+
 #####################################################################################
 
 # 用于计算程序的执行时间
@@ -202,15 +214,3 @@ class Logger:
         self.logger.critical(message)
         self.logger.critical(f"< Critical: {filepath}--{function}--{lineno} >".center(85, "-"))
         exit(1)
-
-
-# 初始化配置（实现类的实例化）
-def initialize_config(module_cfg, pass_params=True):
-    module = importlib.import_module(module_cfg["module"])
-    if pass_params:
-        if "args" not in module_cfg.keys():
-            return getattr(module, module_cfg["main"])()
-        else:
-            return getattr(module, module_cfg["main"])(**module_cfg["args"])
-    else:
-        return getattr(module, module_cfg["main"])

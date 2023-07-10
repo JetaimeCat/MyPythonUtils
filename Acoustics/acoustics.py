@@ -156,23 +156,44 @@ def waveform_enframe(wav_path, sample_rate, window=None, frame_length: int = 160
 
 
 def mult_processing(datasets, args: Union[list], function, n_jobs: Union[int] = -1):
+    """
+    使用多进程处理数据集。
+
+    :param datasets: 要处理的数据集。
+    :param args: 传递给处理函数的参数列表。
+    :param function: 处理函数。
+    :param n_jobs: 并行处理的进程数。默认值为-1，表示使用所有可用的CPU核心数减去2。
+    :return: 处理结果列表。
+    """
     mult.freeze_support()
+
     # 创建线程池
     n_jobs = (mult.cpu_count() - 2) if n_jobs == -1 else n_jobs
     pools = mult.Pool(processes=n_jobs)
+
     # 拆分内容至线程池
     result = list()
     interval = len(datasets) // n_jobs + 1
+
+    # 将数据集分割为适当大小的块，分配给线程池中的各个进程
     for idx in range(n_jobs):
         s_idx = idx * interval
         e_idx = (idx + 1) * interval
+
+        # 如果起始索引大于等于数据集长度，则跳出循环
         if s_idx >= len(datasets):
             break
+
+        # 如果结束索引为-1或大于数据集长度，则将其设置为数据集长度
         elif e_idx == -1 or e_idx > len(datasets):
             e_idx = len(datasets)
+
+        # 将处理函数异步应用于数据块，并将结果添加到结果列表
         result.append(pools.apply_async(func=function, args=tuple([datasets[s_idx:e_idx]] + args)))
+
     pools.close()
     pools.join()
+
     return result
 
 
