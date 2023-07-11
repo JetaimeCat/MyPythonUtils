@@ -15,8 +15,8 @@ import logging
 import colorlog
 import importlib
 import numpy as np
-from typing import Union
 import torch.backends.cudnn
+from typing import Union, List
 from inspect import currentframe
 
 
@@ -74,7 +74,50 @@ def initialize_config(module_cfg, pass_params=True):
         return getattr(module, module_cfg["main"])
 
 
+def generate_output_tree(output_list: List[Union[list, str]], depth: Union[int] = 0, site=None, title=None):
+    """
+    递归打印文件目录树状图(使用局部变量)。
+
+    :param output_list: 根目录路径。
+    :param depth: 根目录、文件所在的层级号。
+    :param site: 存储出现转折的层级号。
+    :param title: 树状标题。
+    :return: None
+    """
+    site = list() if site is None else site
+    void_num = 0  # 记录当前层级已经出现转折的次数
+
+    if title is not None and isinstance(title, str):
+        print(title)
+        generate_output_tree(output_list, depth + 1, site, title=True)
+        return
+
+    for idx, item in enumerate(output_list):
+        str_list = ["\t" if title else "|\t" for _ in range(depth - void_num - len(site))]  # 用于存储每个层级的缩进符号
+        for s in site:
+            str_list.insert(s, "\t")  # 在对应的层级插入转折符号
+
+        sub_count = sum(1 for item in output_list[idx + 1:] if isinstance(item, str))
+        if (idx + 1) != len(output_list) and (sub_count > 0):
+            str_list.append("├─")  # 不是本级目录最后一个文件，添加普通转折符号
+        elif (idx + 1) == len(output_list):
+            str_list.append("└─")  # 本级目录最后一个文件：转折处
+            void_num += 1
+            site.append(depth)  # 添加当前已经出现转折的层级数
+        else:
+            str_list.append("└─")  # 本级目录最后一个文件：非转折处
+        if isinstance(item, str):
+            print("".join(str_list) + item)  # 打印文件名
+        else:
+            generate_output_tree(item, depth + 1, site)  # 递归调用，处理子目录或文件
+
+        if (idx + 1) == len(output_list):
+            void_num -= 1
+            site.pop()  # 移除当前已出现转折的层级数
+
+
 #####################################################################################
+
 
 # 用于计算程序的执行时间
 class ExecutionTimer:
@@ -89,11 +132,13 @@ class ExecutionTimer:
 
     def duration_str(self):  # 获取当前已执行时间字符串（持续时间）
         duration = self.duration()
-        return "[ Current execution time: %02dh:%02dm:%02ds ]" % (duration // 60 // 60, duration // 60, duration % 60)
+        return "[ Current execution time: %02dh:%02dm:%02ds ]" % (
+            duration // 60 // 60, duration // 60, duration % 60)
 
     def printDuration(self):  # 打印执行时间至终端
         duration = self.duration()
-        print("[ Current execution time: %02dh:%02dm:%02ds ]" % (duration // 60 // 60, duration // 60, duration % 60))
+        print(
+            "[ Current execution time: %02dh:%02dm:%02ds ]" % (duration // 60 // 60, duration // 60, duration % 60))
 
 
 # 由字典类型转换为对象类型
@@ -124,7 +169,8 @@ class Logger:
 
         # 输出格式以及对应类型的输出颜色
         self.formatter = "[%(asctime)s %(levelname)s] %(message)s"
-        self.colors = {"INFO": "blue", "DEBUG": "cyan", "WARNING": "yellow", "ERROR": "red", "CRITICAL": "red,bg_white"}
+        self.colors = {"INFO": "blue", "DEBUG": "cyan", "WARNING": "yellow", "ERROR": "red",
+                       "CRITICAL": "red,bg_white"}
 
         # 有颜色格式
         self.formatter_colored = colorlog.ColoredFormatter(f"%(log_color)s{self.formatter}", log_colors=self.colors)
@@ -214,3 +260,15 @@ class Logger:
         self.logger.critical(message)
         self.logger.critical(f"< Critical: {filepath}--{function}--{lineno} >".center(85, "-"))
         exit(1)
+
+
+if __name__ == '__main__':
+    output = [f"Current file name: ;"
+              f"Current waveform shape: ;",
+              f"Current modulation code rate: kbps;",
+              f"Mean modulation code rate: kbps;",
+              f"Current symbol error nums: ;",
+              f"Current symbol error rate: ;",
+              f"Mean symbol error rate: ;",
+              f"Modem used "]
+    generate_output_tree(output, title="Speech_like_waveform_modulation")
