@@ -93,7 +93,11 @@ def generate_output_tree(output_list: List[Union[list, str]], depth: Union[int] 
         return
 
     for idx, item in enumerate(output_list):
-        str_list = ["\t" if title else "|\t" for _ in range(depth - void_num - len(site))]  # 用于存储每个层级的缩进符号
+        # 用于存储每个层级的缩进符号
+        str_list = ["|\t" for _ in range(depth - void_num - len(site))]
+        if title is not None and len(str_list) > 0:
+            str_list[0] = "\t"
+
         for s in site:
             str_list.insert(s, "\t")  # 在对应的层级插入转折符号
 
@@ -109,8 +113,8 @@ def generate_output_tree(output_list: List[Union[list, str]], depth: Union[int] 
         if isinstance(item, str):
             print("".join(str_list) + item)  # 打印文件名
         else:
-            generate_output_tree(item, depth + 1, site)  # 递归调用，处理子目录或文件
-
+            # 递归调用，处理子目录或文件
+            generate_output_tree(item, depth + 1, site, title=None if title is None else True)
         if (idx + 1) == len(output_list):
             void_num -= 1
             site.pop()  # 移除当前已出现转折的层级数
@@ -263,12 +267,5 @@ class Logger:
 
 
 if __name__ == '__main__':
-    output = [f"Current file name: ;"
-              f"Current waveform shape: ;",
-              f"Current modulation code rate: kbps;",
-              f"Mean modulation code rate: kbps;",
-              f"Current symbol error nums: ;",
-              f"Current symbol error rate: ;",
-              f"Mean symbol error rate: ;",
-              f"Modem used "]
-    generate_output_tree(output, title="Speech_like_waveform_modulation")
+    output = ['A', 'B', ['C', 'D', 'E', ['F', 'G', 'H']], 'I', 'J', 'K', ['L', 'M', 'N']]
+    generate_output_tree(output, title="Title")
