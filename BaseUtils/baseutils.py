@@ -4,7 +4,7 @@
 # Software : PyCharm
 # Time     : 2023/5/19 11:14
 # Email    : 1206572082@qq.com
-
+import re
 import os
 import toml
 import time
@@ -18,6 +18,8 @@ import numpy as np
 import torch.backends.cudnn
 from typing import Union, List
 from inspect import currentframe
+from inspect import getsourcefile
+from tqdm import tqdm
 
 
 def setup_seed(seed: Union[int] = 727):
@@ -25,7 +27,7 @@ def setup_seed(seed: Union[int] = 727):
     设置随机种子，保证再次运行会重现上次的结果
 
     :param seed: 种子数值
-    :return: 无输出
+    :return: None
     """
     random.seed(seed)
     np.random.seed(seed)
@@ -35,19 +37,66 @@ def setup_seed(seed: Union[int] = 727):
     torch.backends.cudnn.deterministic = True
 
 
-def prepare_directory(directory: Union[str, list], is_clear: Union[bool] = False):
+def prepare_directories(directories, is_clear: bool, use_timestamp: bool = False):
     """
-    准备所需文件夹，通过传入文件夹路径，进行文件夹准备
+    准备目录，可以选择是否清空目录
 
-    :param directory: 需要创建的文件夹目录或目录列表
-    :param is_clear: 是否清空已有目录内容
-    :return:
+    :param directories: 要准备的目录，可以是单个目录路径或目录路径列表
+    :param is_clear: 是否清空目录。True 表示清空目录，False 表示不清空目录
+    :param use_timestamp: 是否使用时间戳创建文件
+    :return: 时间戳
     """
-    directories = [directory] if isinstance(directory, str) else directory
+    dir_type = type(directories)
+    timestamp = time.strftime("%Y.%m.%d %H-%M-%S", time.localtime()) if use_timestamp else ""
+    assert dir_type in [str, list], f"The folder type is {dir_type}, please select [str, list]."
+    if dir_type is str:
+        directories = [directories]
     for directory in directories:
+        directory = os.path.join(directory, timestamp)
         if os.path.exists(directory) and is_clear:
             shutil.rmtree(directory)
         os.makedirs(directory, exist_ok=True)
+    return timestamp
+
+
+def generate_specify_files(root_dir: str, save_dir: str = ".", save_file_name: str = "specify_files.scp",
+                           prefix: str = None, suffix: str = None, keywords: list = None,
+                           limit: int = -1, is_clear=False, is_show=False, description="Saving after generation"):
+    """
+    生成在指定根目录及其子目录中找到的 .wav 文件列表，并将该列表保存到一个文本文件中
+
+    :param root_dir: 要搜索 .wav 文件的根目录
+    :param save_dir: 将包含 .wav 文件列表的文本文件保存到的目录。默认为当前目录
+    :param save_file_name: 要保存 .wav 文件列表的文本文件的名称。默认为 "specify_files.txt"
+    :param prefix: 待搜索的文件前缀
+    :param suffix: 待搜索的文件后缀
+    :param keywords: 待搜索的文件包含关键词
+    :param limit: 文件数量限制
+    :param is_clear: 是否清空保存 .wav 文件列表的文本文件。默认为 False
+    :param is_show: 是否显示进度
+    :param description: 进度描述
+    :return: 返回指定文件内容
+    """
+    specify_files = list()  # 初始化一个空列表来存储 .wav 文件路径
+
+    for root in os.walk(root_dir):
+        for file in root[-1]:
+            file_path = os.path.join(root[0], file)
+            if (prefix is not None) and (not file.startswith(prefix)):
+                continue  # 如果文件不以指定前缀开头，则跳过
+            if (suffix is not None) and (not file.endswith(suffix)):
+                continue  # 如果文件不以指定后缀结尾，则跳过
+            if (keywords is not None) and (not any((keyword in file_path) for keyword in keywords)):
+                continue  # 如果文件名不包含任何关键词，则跳过
+            specify_files.append(file_path)
+    specify_files = sorted(specify_files[:limit] if limit > 0 else specify_files)
+    # 以写模式打开文件，以保存 .wav 文件列表
+    prepare_directories(save_dir, is_clear=is_clear)
+    with open(os.path.join(save_dir, save_file_name), "w") as file:
+        iterator = tqdm(specify_files, desc=description) if is_show else specify_files
+        for specify_file in iterator:
+            file.write(os.path.abspath(specify_file) + "\n")
+    return np.array(specify_files)
 
 
 def load_profile(toml_path: Union[str], needObj: Union[bool] = False):
@@ -62,8 +111,13 @@ def load_profile(toml_path: Union[str], needObj: Union[bool] = False):
     return DictToObj(params) if needObj else params
 
 
-# 初始化配置（实现类的实例化）
 def initialize_config(module_cfg, pass_params=True):
+    """
+
+    :param module_cfg:
+    :param pass_params:
+    :return:
+    """
     module = importlib.import_module(module_cfg["module"])
     if pass_params:
         if "args" not in module_cfg.keys():
@@ -87,6 +141,7 @@ def generate_output_tree(output_list: List[Union[list, str]], depth: Union[int] 
     site = list() if site is None else site
     void_num = 0  # 记录当前层级已经出现转折的次数
 
+    # 输出树形文件夹的标题
     if title is not None and isinstance(title, str):
         print(title)
         generate_output_tree(output_list, depth + 1, site, title=True)
@@ -121,31 +176,30 @@ def generate_output_tree(output_list: List[Union[list, str]], depth: Union[int] 
 
 
 #####################################################################################
-
-
-# 用于计算程序的执行时间
+# 计算程序执行时间
 class ExecutionTimer:
-    def __init__(self):  # 初始化计时器
-        self.start = time.time()
+    def __init__(self):  # 初始化执行时间计时器
+        self.start_time = time.time()
 
     def reset_time(self):  # 重置开始时间
-        self.start = time.time()
+        self.start_time = time.time()
 
-    def duration(self):  # 获取当前已执行时间（持续时间）
-        return int(time.time() - self.start)
+    def duration(self):  # 获取当前已执行时间（s）
+        return time.time() - self.start_time
 
-    def duration_str(self):  # 获取当前已执行时间字符串（持续时间）
-        duration = self.duration()
-        return "[ Current execution time: %02dh:%02dm:%02ds ]" % (
-            duration // 60 // 60, duration // 60, duration % 60)
+    def duration_ms(self):  # 获取当前已执行时间（ms）
+        return int((time.time() - self.start_time) * 1000)
 
-    def printDuration(self):  # 打印执行时间至终端
-        duration = self.duration()
-        print(
-            "[ Current execution time: %02dh:%02dm:%02ds ]" % (duration // 60 // 60, duration // 60, duration % 60))
+    def duration_str(self):  # 获取当前已执行时间字符串
+        duration = int(self.duration())
+        return "[ Current execution time: %02dh:%02dm:%02ds ]" % (duration // 60 // 60, duration // 60, duration % 60)
+
+    def printDuration(self):  # 输出执行时间
+        duration = int(self.duration())
+        print("[ Current execution time: %02dh:%02dm:%02ds ]" % (duration // 60 // 60, duration // 60, duration % 60))
 
 
-# 由字典类型转换为对象类型
+# 将字典转换为对象的工具类
 class DictToObj(object):
     def __init__(self, data):
         for key, value in data.items():
@@ -154,118 +208,9 @@ class DictToObj(object):
             else:
                 setattr(self, key, DictToObj(value) if isinstance(value, dict) else value)
 
-
-# 程序运行使用的日志类型
-class Logger:
-    def __init__(self, log_name, save_dir="logs", level=logging.DEBUG, console=True, add=False):
-        """
-        初始化日志类型用于程序运行的结果输出
-
-        :param log_name: 保存的日志文件名称
-        :param save_dir: 日志文件的保存根目录
-        :param console: 是否需要将日志内容打印至控制台
-        :param add: 当前日志是否为添加类型
-        """
-        prepare_directory(save_dir)
-        log_name = log_name if log_name.endswith(".log") else (log_name + ".log")  # 处理日志文件名称
-        if not add and os.path.exists(os.path.join(save_dir, log_name)):
-            os.remove(os.path.join(save_dir, log_name))
-
-        # 输出格式以及对应类型的输出颜色
-        self.formatter = "[%(asctime)s %(levelname)s] %(message)s"
-        self.colors = {"INFO": "blue", "DEBUG": "cyan", "WARNING": "yellow", "ERROR": "red",
-                       "CRITICAL": "red,bg_white"}
-
-        # 有颜色格式
-        self.formatter_colored = colorlog.ColoredFormatter(f"%(log_color)s{self.formatter}", log_colors=self.colors)
-        # 无颜色格式
-        self.formatter_colorless = logging.Formatter(self.formatter)
-
-        # 创建 logger
-        self.logger = logging.getLogger(log_name)
-        self.logger.setLevel(level)  # 设置日志等级
-
-        # 创建一个 handler 用于写入日志内容至文件
-        file_handler = logging.FileHandler(os.path.join(save_dir, log_name), encoding="utf-8")
-        file_handler.setFormatter(self.formatter_colorless)
-        file_handler.setLevel(level)
-        self.logger.addHandler(file_handler)
-
-        # 当 console 为真时，创建一个 handler 用于写入日志内容至控制台
-        if isinstance(console, bool) and console:
-            stream_handler = logging.StreamHandler()
-            stream_handler.setLevel(level)
-            stream_handler.setFormatter(self.formatter_colored)
-            self.logger.addHandler(stream_handler)
-        self.logger.info(f"< {log_name} >".center(89, "-"))
-
-    def info(self, message, header=None, footer=None):
-        last_frame = currentframe().f_back
-        filepath = last_frame.f_code.co_filename
-        # 获取当前正在执行的函数名称
-        function = last_frame.f_code.co_name
-        function = "main" if function == "<module>" else function
-        lineno = last_frame.f_lineno
-        if header is not None:
-            self.logger.info(f"< {header} : {filepath}--{function}--{lineno} >".center(89, "-"))
-        if message is not None:
-            self.logger.info(message)
-        if footer is not None:
-            self.logger.info(f"< {footer} {function}--{lineno} >".center(89, "-"))
-
-    def debug(self, message, header=None, footer=None):
-        last_frame = currentframe().f_back
-        filepath = last_frame.f_code.co_filename
-        # 获取当前正在执行的函数名
-        function = last_frame.f_code.co_name
-        function = "main" if function == "<module>" else function
-        lineno = last_frame.f_lineno
-        if header is not None:
-            self.logger.debug(f"< {header} : {filepath}--{function}--{lineno} >".center(88, "-"))
-        if message is not None:
-            self.logger.debug(message)
-        if footer is not None:
-            self.logger.debug(f"< {footer} {function}--{lineno} >".center(88, "-"))
-
-    def warning(self, message, header=None, footer=None):
-        last_frame = currentframe().f_back
-        filepath = last_frame.f_code.co_filename
-        # 获取当前正在执行的函数名
-        function = last_frame.f_code.co_name
-        function = "main" if function == "<module>" else function
-        lineno = last_frame.f_lineno
-        if header is not None:
-            self.logger.warning(f"< {header} : {filepath}--{function}--{lineno} >".center(86, "-"))
-        if message is not None:
-            self.logger.warning(message)
-        if footer is not None:
-            self.logger.warning(f"< {footer} {function}--{lineno} >".center(86, "-"))
-
-    def error(self, message, immediately=False):
-        last_frame = currentframe().f_back
-        filepath = last_frame.f_code.co_filename
-        # 获取当前正在执行的函数名
-        function = last_frame.f_code.co_name
-        function = "main" if function == "<module>" else function
-        lineno = last_frame.f_lineno
-        self.logger.error(f"< Error: {filepath}--{function}--{lineno} >".center(88, "-"))
-        self.logger.error(message)
-        if immediately:
-            exit(1)
-
-    def critical(self, message):
-        last_frame = currentframe().f_back
-        filepath = last_frame.f_code.co_filename
-        # 获取当前正在执行的函数名
-        function = last_frame.f_code.co_name
-        function = "main" if function == "<module>" else function
-        lineno = last_frame.f_lineno
-        self.logger.critical(f"< Critical: {filepath}--{function}--{lineno} >".center(85, "-"))
-        self.logger.critical(message)
-        self.logger.critical(f"< Critical: {filepath}--{function}--{lineno} >".center(85, "-"))
-        exit(1)
-
-
-if __name__ == '__main__':
-    output = ['A', 'B', ['C', 'D', 'E', ['F', 'G', 'H']], 'I', 'J', 'K', ['L', 'M', 'N']]
-    generate_output_tree(output, title="Title")
+# if __name__ == '__main__':
+#     base_dir = r"ST-CMDS"
+#     root_dir = fr"F:\AudioData\{base_dir}"
+#     specify_save_dir = fr"H:\AudioDataset\{base_dir}"
+#     prepare_directories(specify_save_dir, is_clear=True)
+#     # files_list = generate_specify_files(root_dir, specify_save_dir, f"{base_dir}.scp", keywords=[".wav"], is_show=True)
