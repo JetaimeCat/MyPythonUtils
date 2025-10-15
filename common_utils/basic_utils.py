@@ -22,52 +22,52 @@ from contextlib import contextmanager
 # 不同形式的文件层级连接符号
 CONNECTORS = {
     "default": {
-        "space": "    ",
-        "branch": "│   ",
-        "tee": "├── ",
-        "last": "└── "
+        "space": "       ",
+        "branch": "   │   ",
+        "tee": "   ├── ",
+        "last": "   └── "
     },
     "round": {
-        "space": "    ",
-        "branch": "│   ",
-        "tee": "├─╴ ",
-        "last": "╰─╴ "
+        "space": "       ",
+        "branch": "   │   ",
+        "tee": "   ├─╴ ",
+        "last": "   ╰─╴ "
     },
     "minimal": {
-        "space": "    ",
-        "branch": "│   ",
-        "tee": "├── ",
-        "last": "╰── "
+        "space": "       ",
+        "branch": "   │   ",
+        "tee": "   ├── ",
+        "last": "   ╰── "
     },
     "bold": {
-        "space": "    ",
-        "branch": "┃   ",
-        "tee": "┣━━ ",
-        "last": "┗━━ "
+        "space": "       ",
+        "branch": "   ┃   ",
+        "tee": "   ┣━━ ",
+        "last": "   ┗━━ "
     },
     "double": {
-        "space": "    ",
-        "branch": "║   ",
-        "tee": "╠══ ",
-        "last": "╚══ "
+        "space": "       ",
+        "branch": "   ║   ",
+        "tee": "   ╠══ ",
+        "last": "   ╚══ "
     },
     "dot": {
-        "space": "    ",
-        "branch": "│   ",
-        "tee": "├── ",
-        "last": "•── "
+        "space": "       ",
+        "branch": "   │   ",
+        "tee": "   ├── ",
+        "last": "   •── "
     },
     "arrow": {
-        "space": "    ",
-        "branch": "│   ",
-        "tee": "├─▶ ",
-        "last": "╰─▶ "
+        "space": "       ",
+        "branch": "   │   ",
+        "tee": "   ├─▶ ",
+        "last": "   ╰─▶ "
     },
     "curved": {
-        "space": "    ",
-        "branch": "│   ",
-        "tee": "├╌╌ ",
-        "last": "╰╌╌ "
+        "space": "       ",
+        "branch": "   │   ",
+        "tee": "   ├╌╌ ",
+        "last": "   ╰╌╌ "
     }
 }
 
@@ -389,7 +389,7 @@ class DirectoryTree:
         """
         self.show_hidden = show_hidden
         self.max_depth = max_depth
-        self.exclude_dirs = exclude_dirs
+        self.exclude_dirs = exclude_dirs or []
 
         # 不同层级的连接符号
         self.connectors = CONNECTORS[style]
@@ -414,7 +414,7 @@ class DirectoryTree:
 
         return False
 
-    def generate_tree(self, root_path, prefix: str = "", depth: int = 0):
+    def generate_tree(self, root_path, prefix: str = "", depth: int = 0, is_root: bool = True):
         """
         生成目录树的字符串表示
 
@@ -422,6 +422,7 @@ class DirectoryTree:
             root_path: 根目录路径
             prefix: 前缀字符串
             depth: 当前深度
+            is_root: 是否为根目录（内部使用）
 
         Returns:
             str: 目录树的字符串表示
@@ -430,10 +431,19 @@ class DirectoryTree:
             return ""
 
         # 确保路径存在且是目录
-        if not root_path.exists() or not root_path.is_dir():
-            return f"错误: 路径 '{root_path}' 不存在或不是目录\n"
+        if not root_path.exists():
+            return f"错误: 路径 '{root_path}' 不存在\n"
+        if not root_path.is_dir():
+            return f"错误: 路径 '{root_path}' 不是目录\n"
 
-        tree_str = f"{root_path.name}/\n"
+        tree_str = ""
+
+        # 只在根目录显示目录名
+        if is_root:
+            tree_str = f"{root_path.name}/\n"
+        else:
+            # 非根目录不重复显示目录名，因为父级已经显示过了
+            pass
 
         try:
             # 获取所有条目并排序
@@ -459,8 +469,9 @@ class DirectoryTree:
                     extension = self.connectors['space'] if is_last else self.connectors['branch']
                     next_prefix = prefix + extension
 
-                    # 递归生成子目录树
-                    tree_str += self.generate_tree(item, next_prefix, depth + 1)
+                    # 递归生成子目录树，标记为非根目录
+                    subtree = self.generate_tree(item, next_prefix, depth + 1, is_root=False)
+                    tree_str += subtree
                 else:
                     tree_str += "\n"
 
@@ -561,8 +572,3 @@ class TextFileReader:
         # 读取文件内容
         with open(file_path, "r", encoding=encoding) as file:
             return file.read()
-
-
-if __name__ == "__main__":
-    output = ["A", "B", ["C", "D", "E", ["F", "G", "H"]], "I", "J", "K", ["L", "M", "N"]]
-    generate_output_tree(output, title="Title")
