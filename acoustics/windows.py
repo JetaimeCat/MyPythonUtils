@@ -2,10 +2,28 @@ import numpy as np
 
 
 def reg_window(number):
+    """
+    生成矩形窗函数
+
+    Args:
+        number: 窗函数长度
+
+    Returns:
+        np.ndarray: 矩形窗函数数组，所有元素值为1
+    """
     return np.ones(number)
 
 
 def hanning_window(number):
+    """
+    生成汉宁窗函数
+
+    Args:
+        number: 窗函数长度
+
+    Returns:
+        np.ndarray: 汉宁窗函数数组
+    """
     n = np.array([i for i in range(number)], dtype=int)
     window = 0.5
     window = window - 0.5 * np.cos((2 * np.pi * n) / (number - 1))
@@ -13,6 +31,15 @@ def hanning_window(number):
 
 
 def hamming_window(number):
+    """
+    生成汉明窗函数
+
+    Args:
+        number: 窗函数长度
+
+    Returns:
+        np.ndarray: 汉明窗函数数组
+    """
     n = np.array([i for i in range(number)], dtype=int)
     window = 0.54
     window = window - 0.46 * np.cos((2 * np.pi * n) / (number - 1))
@@ -20,6 +47,15 @@ def hamming_window(number):
 
 
 def blackman_window(number):
+    """
+    生成布莱克曼窗函数
+
+    Args:
+        number: 窗函数长度
+
+    Returns:
+        np.ndarray: 布莱克曼窗函数数组
+    """
     n = np.array([i for i in range(number)], dtype=int)
     window = 0.42
     window = window - 0.5 * np.cos((2 * np.pi * n) / (number - 1))
@@ -28,6 +64,15 @@ def blackman_window(number):
 
 
 def blackman_harris_window(number):
+    """
+    生成布莱克曼-哈里斯窗函数
+
+    Args:
+        number: 窗函数长度
+
+    Returns:
+        np.ndarray: 布莱克曼-哈里斯窗函数数组
+    """
     n = np.array([i for i in range(number)], dtype=int)
     window = 0.35875
     window = window - 0.48829 * np.cos((2 * np.pi * n) / (number - 1))
@@ -37,6 +82,15 @@ def blackman_harris_window(number):
 
 
 def nuttall_window(number):
+    """
+    生成纳托尔窗函数
+
+    Args:
+        number: 窗函数长度
+
+    Returns:
+        np.ndarray: 纳托尔窗函数数组
+    """
     n = np.array([i for i in range(number)], dtype=int)
     window = 0.355768
     window = window - 0.487396 * np.cos((2 * np.pi * n) / (number - 1))
@@ -46,6 +100,15 @@ def nuttall_window(number):
 
 
 def rife_vincent_window(number):
+    """
+    生成莱夫-文森特窗函数
+
+    Args:
+        number: 窗函数长度
+
+    Returns:
+        np.ndarray: 莱夫-文森特窗函数数组
+    """
     n = np.array([i for i in range(number)], dtype=int)
     window = 1
     window = window - 1.5 * np.cos((2 * np.pi * n) / (number - 1))
@@ -55,6 +118,15 @@ def rife_vincent_window(number):
 
 
 def flat_top_window(number):
+    """
+    生成平顶窗函数
+
+    Args:
+        number: 窗函数长度
+
+    Returns:
+        np.ndarray: 平顶窗函数数组
+    """
     n = np.array([i for i in range(number)], dtype=int)
     window = 0.21706
     window = window - 0.42103 * np.cos((2 * np.pi * n) / (number - 1))
