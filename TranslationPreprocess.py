@@ -43,8 +43,12 @@ def translate(text, to_language="中文", text_language="英文", api="Google Tr
         # Send request
         r = requests.post(BAIDU_TRANSLATE_URL, params=payload, headers=headers, proxies=PROXY_SERVERS)
         data = eval(json.dumps(r.json(), indent=4, ensure_ascii=False))
-        result = data["trans_result"]
-        result = [urllib.parse.unquote(res["dst"]) for res in result]
+        if not data.get("error_code"):
+            result = data["trans_result"]
+            result = [urllib.parse.unquote(res["dst"]) for res in result]
+        else:
+            result = data["error_msg"]
+            result = [urllib.parse.unquote(result)]
     if len(result) == 0:
         return ""
     return html.unescape(result[0])
