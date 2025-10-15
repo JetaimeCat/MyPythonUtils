@@ -12,17 +12,20 @@ import soundfile as sf
 from typing import Union
 import multiprocessing as mult
 
-eps = 2.220446049250313e-16
+EPSILON = 2.220446049250313e-16
 
 
 def resample(wav_path: Union[str], sample_rate: Union[int], save_dir: Union[str] = None):
     """
-    音频数据重采样，将音频数据以 sample_rate 的采样率加载数据
+    音频数据重采样，将音频数据以指定采样率加载数据
 
-    :param wav_path: 音频数据文件的保存路径
-    :param sample_rate: 进行重采样的采样率
-    :param save_dir: 重采样后的音频数据文件保存根目录
-    :return: 加载的音频数据
+    Args:
+        wav_path: 音频数据文件的保存路径
+        sample_rate: 进行重采样的采样率
+        save_dir: 重采样后的音频数据文件保存根目录
+
+    Returns:
+        np.ndarray: 加载的音频数据
     """
     signal, _ = librosa.load(wav_path, sr=sample_rate)
     if save_dir is not None:
@@ -36,10 +39,13 @@ def waveform_resample(wav_path: Union[list], sample_rate: Union[int], save_dir: 
     """
     对多条语音信号进行重采样处理，并在文件维度上合并
 
-    :param wav_path: wav 文件路径
-    :param sample_rate: wav 语音数据采样率
-    :param save_dir: 重采样文件保存路径
-    :return: 重采样完成的数据内容
+    Args:
+        wav_path: wav 文件路径列表
+        sample_rate: wav 语音数据采样率
+        save_dir: 重采样文件保存路径
+
+    Returns:
+        list: 重采样完成的数据内容列表
     """
     signals = list()
     postfix = {"sr": sample_rate, "save_dir": save_dir}
@@ -53,9 +59,12 @@ def get_windows(window, frame_length):
     """
     加窗参数处理
 
-    :param window: 窗函数，通过判断该参数类型进行不同操作。
-    :param frame_length: 帧长，当该参数为小数时通过采样率计算帧长度，当该参数为整数时即为帧长度。
-    :return: 窗内容、窗长
+    Args:
+        window: 窗函数，通过判断该参数类型进行不同操作
+        frame_length: 帧长，当该参数为小数时通过采样率计算帧长度，当该参数为整数时即为帧长度
+
+    Returns:
+        tuple: 窗内容、窗长
     """
     if window is None:
         window = np.ones(frame_length)
@@ -72,12 +81,15 @@ def enframe(signal, sample_rate, window=None, frame_length=0.02, hop_length=0.01
     """
     原始语音信号分帧
 
-    :param signal: 原始语音数据。
-    :param sample_rate: 原始语音采样率。
-    :param window: 窗函数，通过判断该参数类型进行不同操作。
-    :param frame_length: 帧长，当该参数为小数时通过采样率计算帧长度，当该参数为整数时即为帧长度。
-    :param hop_length: 帧移间隔，当该参数为小数时通过采样率计算得到，当该参数为整数时即为帧间隔。
-    :return: 完成分帧、加窗的语音数据。
+    Args:
+        signal: 原始语音数据
+        sample_rate: 原始语音采样率
+        window: 窗函数，通过判断该参数类型进行不同操作
+        frame_length: 帧长，当该参数为小数时通过采样率计算帧长度，当该参数为整数时即为帧长度
+        hop_length: 帧移间隔，当该参数为小数时通过采样率计算得到，当该参数为整数时即为帧间隔
+
+    Returns:
+        np.ndarray: 完成分帧、加窗的语音数据
     """
     # 计算获得当前帧长
     if isinstance(frame_length, float):
@@ -105,13 +117,16 @@ def reframe(frames, sample_rate, window=None, frame_length=0.02, hop_length=0.01
     """
     分帧数据还原波形
 
-    :param frames: 完成分帧的波形数据。
-    :param sample_rate: 原始语音采样率。
-    :param window: 窗函数，通过判断该参数类型进行不同操作。
-    :param frame_length: 帧长，当该参数为小数时通过采样率计算帧长度，当该参数为整数时即为帧长度。
-    :param hop_length: 帧移间隔，当该参数为小数时通过采样率计算得到，当该参数为整数时即为帧间隔。
-    :param max_length: 限制波形数据长度。
-    :return: 完成分帧、加窗的语音数据。
+    Args:
+        frames: 完成分帧的波形数据
+        sample_rate: 原始语音采样率
+        window: 窗函数，通过判断该参数类型进行不同操作
+        frame_length: 帧长，当该参数为小数时通过采样率计算帧长度，当该参数为整数时即为帧长度
+        hop_length: 帧移间隔，当该参数为小数时通过采样率计算得到，当该参数为整数时即为帧间隔
+        max_length: 限制波形数据长度
+
+    Returns:
+        np.ndarray: 还原后的波形数据
     """
     # 计算获得当前帧长
     if isinstance(frame_length, float):
@@ -139,12 +154,15 @@ def waveform_enframe(wav_path, sample_rate, window=None, frame_length: int = 160
     """
     对多条语音信号进行分帧处理，并在帧维度上合并
 
-    :param wav_path: wav 文件路径
-    :param sample_rate: wav 语音数据采样率
-    :param window: 窗函数选择
-    :param frame_length: wav 语音数据帧长
-    :param hop_length: wav 语音数据帧间隔
-    :return: 分帧完成的数据内容
+    Args:
+        wav_path: wav 文件路径
+        sample_rate: wav 语音数据采样率
+        window: 窗函数选择
+        frame_length: wav 语音数据帧长
+        hop_length: wav 语音数据帧间隔
+
+    Returns:
+        np.ndarray: 分帧完成的数据内容
     """
     frames_array = np.array(list())
     postfix = {"sample_rate": sample_rate, "frame_length": frame_length, "hop_length": hop_length}
@@ -153,52 +171,3 @@ def waveform_enframe(wav_path, sample_rate, window=None, frame_length: int = 160
         frames = enframe(signal, sample_rate, window, frame_length, hop_length)
         frames_array = np.r_[frames_array, frames] if len(frames_array) != 0 else frames
     return frames_array
-
-
-def mult_processing(datasets, args: Union[list], function, n_jobs: Union[int] = -1):
-    """
-    使用多进程处理数据集。
-
-    :param datasets: 要处理的数据集。
-    :param args: 传递给处理函数的参数列表。
-    :param function: 处理函数。
-    :param n_jobs: 并行处理的进程数。默认值为-1，表示使用所有可用的CPU核心数减去2。
-    :return: 处理结果列表。
-    """
-    mult.freeze_support()
-
-    # 创建线程池
-    n_jobs = (mult.cpu_count() - 2) if n_jobs == -1 else n_jobs
-    pools = mult.Pool(processes=n_jobs)
-
-    # 拆分内容至线程池
-    result = list()
-    interval = len(datasets) // n_jobs + 1
-
-    # 将数据集分割为适当大小的块，分配给线程池中的各个进程
-    for idx in range(n_jobs):
-        s_idx = idx * interval
-        e_idx = (idx + 1) * interval
-
-        # 如果起始索引大于等于数据集长度，则跳出循环
-        if s_idx >= len(datasets):
-            break
-
-        # 如果结束索引为-1或大于数据集长度，则将其设置为数据集长度
-        elif e_idx == -1 or e_idx > len(datasets):
-            e_idx = len(datasets)
-
-        # 将处理函数异步应用于数据块，并将结果添加到结果列表
-        result.append(pools.apply_async(func=function, args=tuple([datasets[s_idx:e_idx]] + args)))
-
-    pools.close()
-    pools.join()
-
-    return result
-
-
-if __name__ == '__main__':
-    root_dir = r"../dataset"
-    save_dir = r"../process"
-    wav_files = [os.path.join(root_dir, file) for file in os.listdir(root_dir)]
-    res = mult_processing(wav_files, [16000], waveform_enframe, 5)
